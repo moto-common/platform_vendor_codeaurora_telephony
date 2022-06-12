@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019-2020 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015, 2019-2021 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -68,9 +68,6 @@ public class QtiCallConstants {
     /* Call encryption status extra key. The value will be a boolean. */
     public static final String CALL_ENCRYPTION_EXTRA_KEY = "CallEncryption";
 
-    /* Call History Info extra key. The value will be a ArrayList of Strings. */
-    public static final String EXTRAS_CALL_HISTORY_INFO = "CallHistoryInfo";
-
     /* Call fail code extra key name */
     public static final String EXTRAS_KEY_CALL_FAIL_EXTRA_CODE  = "CallFailExtraCode";
 
@@ -95,14 +92,25 @@ public class QtiCallConstants {
     public static final int CALL_FAIL_EXTRA_CODE_CALL_CS_RETRY_REQUIRED =
             ImsReasonInfo.CODE_LOCAL_CALL_CS_RETRY_REQUIRED;
 
+    public static final String SIMLESS_RTT_DOWNGRADE_SUPPORTED = "simless_rtt_downgrade_supported";
+    public static final String SIMLESS_RTT_SUPPORTED = "simless_rtt_supported";
+
     /* Calls are rejected due to low battery */
     public static final int CALL_FAIL_EXTRA_CODE_LOCAL_LOW_BATTERY =
             ImsReasonInfo.CODE_LOCAL_LOW_BATTERY;
 
     /* call fail error code to retry ims call without rtt */
     public static final int CODE_RETRY_ON_IMS_WITHOUT_RTT = 3001;
+
     /* Unknown disconnect cause */
     public static final int DISCONNECT_CAUSE_UNSPECIFIED = -1;
+
+    /* Call fail error code due to concurrent calls not possible, {link@ ImsReasonInfo#
+     * CODE_CONCURRENT_CALLS_NOT_POSSIBLE} */
+    public static final int CODE_CONCURRENT_CALLS_NOT_POSSIBLE = 3002;
+
+    // Default code to use for additional call info code.
+    public static final int CODE_UNSPECIFIED = -1;
 
     /**
      * Whether the IMS to CS retry is enabled
@@ -255,9 +263,16 @@ public class QtiCallConstants {
      * For TMO - 0 : Upon Request Mode (Disabled)
      *           1 : Automatic Mode (Full)
      * For Vzw - 1 : Automatic Mode (Full)
-     *
      */
-    public static final String PROPERTY_RTT_OPERATING_MODE = "persist.vendor.radio.rtt.operval";
+    public static final String QTI_IMS_RTT_OPERATING_MODE = "qti.settings.rtt_operation";
+
+    /**
+     * Whether dialing normal call is ON or OFF
+     * The value 1 - enable (Voice call), 0 - disable (RTT call)
+     * This is set through ImsSettings UI
+     */
+    public static final String QTI_IMS_CAN_START_RTT_CALL =
+            "qti.settings.can_start_rtt_call";
 
     // RTT default phone id
     public static final int RTT_DEFAULT_PHONE_ID = 0;
@@ -274,52 +289,38 @@ public class QtiCallConstants {
     // RTT Visibility On
     public static final int RTT_VISIBILITY_ENABLED = 1;
 
-   /**
-     * Broadcast Action: Send RTT Text Message
-     */
-    public static final String ACTION_SEND_RTT_TEXT =
-            "org.codeaurora.intent.action.send.rtt.text";
+    // RTT Call Type Off
+    public static final int RTT_CALL_TYPE_RTT = 0;
 
-   /**
-     * RTT Text Value
-     */
-    public static final String RTT_TEXT_VALUE =
-            "org.codeaurora.intent.action.rtt.textvalue";
+    // RTT Call Type On
+    public static final int RTT_CALL_TYPE_VOICE = 1;
 
-   /**
-     * Broadcast Action: RTT Operation
-     */
-    public static final String ACTION_RTT_OPERATION =
-            "org.codeaurora.intent.action.send.rtt.operation";
-
-   /**
-     * RTT Operation Type
-     */
-    public static final String RTT_OPERATION_TYPE =
-            "org.codeaurora.intent.action.rtt.operation.type";
-
-    // RTT Operation Type can be one of the following
-    // To request upgrade of regular call to RTT call
-    public static final int RTT_UPGRADE_INITIATE = 1;
-    // To accept incoming RTT upgrade request
-    public static final int RTT_UPGRADE_CONFIRM = 2;
-    // To reject incoming RTT upgrade request
-    public static final int RTT_UPGRADE_REJECT = 3;
-    // To request downgrade of RTT call to regular call
-    public static final int RTT_DOWNGRADE_INITIATE = 4;
+    // RTT Operating mode
+    // Dials normal voice call by default and provides an option
+    // to upgrade call to RTT in InCallUi.
+    public static final int RTT_UPON_REQUEST_MODE = 0;
+    // All the calls dialed are RTT calls by default.
+    public static final int RTT_AUTOMATIC_MODE = 1;
 
     // Recorder Auto-Scaling Factor
     public static final int RECORDER_SCALING_FACTOR = 8;
 
+    // Refer to ImsConfigImplBase CONFIG_RESULT_* codes
+    public static final int CONFIG_RESULT_NOT_SUPPORTED = 2;
     /**
-     * Whether auto reject is enabled for IMS calls on a sub when high priority data
+     * Auto reject call options - for IMS calls on a sub when high priority data
      * is on the other sub
-     * Type: int (0 for disabled, 1 for enabled)
+     * Type: int (0 for default, 1 for auto reject, 2 for allow alerting)
      */
-    public static final String IMS_AUTO_REJECT = "qti.settings.auto_reject";
-    // Auto reject call modes
-    public static final int AUTO_REJECT_CALL_DISABLED = 0;
-    public static final int AUTO_REJECT_CALL_ENABLED = 1;
+    public static final String IMS_AUTO_REJECT_MODE = "qti.settings.auto_reject";
+    // auto reject call modes
+    // user is notified of incoming call
+    public static final int AR_MODE_ALLOW_INCOMING = 0;
+    // incoming call is auto rejected
+    public static final int AR_MODE_AUTO_REJECT = 1;
+    // user is usually alerted of incoming call but auto rejected in certain cases
+    // modem may have some optimization
+    public static final int AR_MODE_ALLOW_ALERTING = 2;
     // Auto reject call UI item, avoid conflicting values from ImsCallUtils.ConfigItem
     public static final int AUTO_REJECT_CALL_MODE = 1000;
     public static final int QTI_CONFIG_SMS_APP = 1001;
@@ -328,18 +329,23 @@ public class QtiCallConstants {
     public static final int CALL_COMPOSER_MODE = 1004;
 
     /**
-     * Key values for the Call Composer elements
+     * Key values for the pre alerting call elements
      */
-    // Intent action broadcasted when call composer elements are available for MT
-    public static final String ACTION_CALL_COMPOSER_INFO =
-            "org.codeaurora.intent.action.CALL_COMPOSER_INFO";
-    // set for MT call composer call (unique ID to match each call)
+    // Intent action broadcasted when pre alerting call elements are available for MT
+    public static final String ACTION_PRE_ALERTING_CALL_INFO =
+            "org.codeaurora.intent.action.PRE_ALERTING_CALL_INFO";
+    // Set for MT pre alerting call (unique ID to match each call)
     // Type: int
-    public static String EXTRA_CALL_COMPOSER_TOKEN = "call_composer_token";
+    public static String EXTRA_PRE_ALERTING_CALL_TOKEN = "pre_alerting_call_token";
+    public static final int INVALID_TOKEN = -1;
 
-    // set for MT call composer call (only set when the call has ended)
+    // Set for MT pre alerting call (unique ID to match subscription)
+    // Type: int
+    public static final String EXTRA_PRE_ALERTING_CALL_PHONE_ID = " pre_alerting_call_phoneId";
+
+    // Set for MT pre alerting call (only set when the call has ended)
     // Type: boolean
-    public static String EXTRA_CALL_COMPOSER_CALL_ENDED = "call_composer_call_ended";
+    public static String EXTRA_PRE_ALERTING_CALL_ENDED = "pre_alerting_call_ended";
 
     // set for call composer call
     public static String EXTRA_CALL_COMPOSER_INFO = "call_composer_info";
@@ -373,6 +379,25 @@ public class QtiCallConstants {
     public static String EXTRA_CALL_COMPOSER_LOCATION_LONGITUDE =
             "call_composer_location_longitude";
 
+    // Set for eCnam info
+    public static String EXTRA_CALL_ECNAM = "call_ecnam";
+
+    // Set when ecnam display name is added
+    // Type: String
+    public static final String EXTRA_CALL_ECNAM_DISPLAY_NAME = "call_ecnam_display_name";
+
+    // Set when ecnam icon url is added
+    // Type: parcelable Uri
+    public static final String EXTRA_CALL_ECNAM_ICON = "call_ecnam_icon";
+
+    // Set when ecnam info url is added
+    // Type: parcelable Uri
+    public static final String EXTRA_CALL_ECNAM_INFO = "call_ecnam_info";
+
+    // Set when ecnam card url is added
+    // Type: parcelable Uri
+    public static final String EXTRA_CALL_ECNAM_CARD = "call_ecnam_card";
+
     /**
      * User setting to control whether dialing call composer calls are allowed
      * Type: int (0 for disable, 1 for enabled);
@@ -395,5 +420,56 @@ public class QtiCallConstants {
     public static final int REG_ERROR_GEO_LOCATION_STATUS_ENGINE_LOCK = 2002;
     // This is success case, received when all the GPS errors are resolved.
     public static final int REG_ERROR_GEO_LOCATION_STATUS_RESOLVED = 2003;
-}
 
+    /* CRS type extra key */
+    public static final String EXTRA_CRS_TYPE = "crsType";
+    /* Original call type extra key */
+    public static final String EXTRA_ORIGINAL_CALL_TYPE = "originalCallType";
+    /* Slience UI before CRS RTP come extra key */
+    public static final String EXTRA_IS_PREPARATORY = "isPreparatory";
+    //INVALID if CrsData is invalid, play local ring.
+    public static final int CRS_TYPE_INVALID = 0;
+    //AUDIO if only audio will be played.
+    public static final int CRS_TYPE_AUDIO = 1 << 0;
+    //VIDEO if only video will be played.
+    public static final int CRS_TYPE_VIDEO = 1 << 1;
+
+    //Call progress info constants.
+    public static final int CALL_PROGRESS_INFO_TYPE_INVALID = -1;
+    public static final int CALL_PROGRESS_INFO_TYPE_CALL_REJ_Q850 = 0;
+    public static final int CALL_PROGRESS_INFO_TYPE_CALL_WAITING = 1;
+    public static final int CALL_PROGRESS_INFO_TYPE_CALL_FORWARDING = 2;
+    public static final int CALL_PROGRESS_INFO_TYPE_REMOTE_AVAILABLE = 3;
+    //Call progress info call rejection code
+    public static final int CALL_REJECTION_CODE_INVALID = -1;
+    //Call progress info extras
+    public static final String EXTRAS_CALL_PROGRESS_INFO_TYPE = "CallProgInfoType";
+    public static final String EXTRAS_CALL_PROGRESS_REASON_CODE = "CallProgReasonCode";
+    public static final String EXTRAS_CALL_PROGRESS_REASON_TEXT = "CallProgReasonText";
+
+    // Call audio quality constants.
+    public static final int CALL_AUDIO_QUALITY_NO_HD = 0;
+    public static final int CALL_AUDIO_QUALITY_HD = 1;
+    public static final int CALL_AUDIO_QUALITY_HD_PLUS = 2;
+
+    /*Sms call back constants*/
+    public static final int SCBM_STATUS_EXIT = 0;
+    public static final int SCBM_STATUS_ENTER = 1;
+
+    /**
+     * Intent action broadcasted when Sms Callback Mode is changed
+     */
+    public static final String ACTION_SMS_CALLBACK_MODE =
+            "org.codeaurora.intent.action.SMS_CALLBACK_MODE";
+    /**
+     * Extra key for when modem enters/exits sms callback mode.
+     * Type: boolean
+     */
+    public static String EXTRA_SMS_CALLBACK_MODE = "sms_callback_mode";
+
+    /* Call Forward service related error.
+     * This error code will be notified when user tries to
+     *  - activate CFx before register operation
+     *  - query CFNL while network does not support CFNL feature */
+    public static final int CODE_UT_CF_SERVICE_NOT_REGISTERED = 850;
+}
